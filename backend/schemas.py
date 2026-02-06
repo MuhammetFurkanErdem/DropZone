@@ -12,7 +12,7 @@ from datetime import datetime
 
 class MessageBase(BaseModel):
     """WebSocket üzerinden gönderilen her mesajın temel yapısı"""
-    type: Literal["join", "leave", "message", "file", "error", "system"]
+    type: Literal["join", "leave", "message", "file", "error", "system", "typing_start", "typing_stop"]
     timestamp: Optional[datetime] = None
     
     class Config:
@@ -141,6 +141,36 @@ class SystemMessage(MessageBase):
                 "type": "system",
                 "message": "Sunucu bakıma alınacaktır",
                 "severity": "warning",
+                "timestamp": "2026-02-06T12:30:00"
+            }
+        }
+
+
+class TypingStartMessage(MessageBase):
+    """Yazma başlangıç sinyali"""
+    type: Literal["typing_start"] = "typing_start"
+    username: str = Field(..., min_length=1, max_length=50)
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "type": "typing_start",
+                "username": "Ahmet",
+                "timestamp": "2026-02-06T12:30:00"
+            }
+        }
+
+
+class TypingStopMessage(MessageBase):
+    """Yazma durdurma sinyali"""
+    type: Literal["typing_stop"] = "typing_stop"
+    username: str = Field(..., min_length=1, max_length=50)
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "type": "typing_stop",
+                "username": "Ahmet",
                 "timestamp": "2026-02-06T12:30:00"
             }
         }
@@ -292,5 +322,9 @@ def validate_websocket_message(data: dict) -> MessageBase:
         return ErrorMessage(**data)
     elif message_type == "system":
         return SystemMessage(**data)
+    elif message_type == "typing_start":
+        return TypingStartMessage(**data)
+    elif message_type == "typing_stop":
+        return TypingStopMessage(**data)
     else:
         raise ValueError(f"Bilinmeyen mesaj tipi: {message_type}")

@@ -11,12 +11,14 @@ interface UseWebSocketReturn {
   connect: (roomId: string, username: string) => void;
   disconnect: () => void;
   loadHistory: (history: Message[]) => void;
+  typingUsers: string[];
 }
 
 export const useWebSocket = (): UseWebSocketReturn => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const roomIdRef = useRef<string>('');
   const usernameRef = useRef<string>('');
@@ -37,7 +39,21 @@ export const useWebSocket = (): UseWebSocketReturn => {
       ws.onmessage = (event) => {
         try {
           const message: Message = JSON.parse(event.data);
-          setMessages((prev) => [...prev, message]);
+          
+          // Handle typing indicators
+          if (message.type === 'typing_start') {
+            setTypingUsers((prev) => {
+              if (!prev.includes(message.username)) {
+                return [...prev, message.username];
+              }
+              return prev;
+            });
+          } else if (message.type === 'typing_stop') {
+            setTypingUsers((prev) => prev.filter((user) => user !== message.username));
+          } else {
+            // Regular message - add to messages list
+            setMessages((prev) => [...prev, message]);
+          }
         } catch (err) {
           console.error('Failed to parse message:', err);
         }
@@ -66,6 +82,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
       wsRef.current = null;
       setIsConnected(false);
       setMessages([]);
+      setTypingUsers([]);
     }
   }, []);
 
@@ -98,5 +115,6 @@ export const useWebSocket = (): UseWebSocketReturn => {
     connect,
     disconnect,
     loadHistory,
+    typingUsers,
   };
 };

@@ -13,10 +13,13 @@ export const ChatRoom = ({ roomId, username, onLeave }: ChatRoomProps) => {
   const [messageInput, setMessageInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { messages, isConnected, error, sendMessage, connect, disconnect, loadHistory } =
+  const { messages, isConnected, error, sendMessage, connect, disconnect, loadHistory, typingUsers: wsTypingUsers } =
     useWebSocket();
 
   // Load chat history when room is opened
@@ -50,8 +53,50 @@ export const ChatRoom = ({ roomId, username, onLeave }: ChatRoomProps) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Sync typing users from WebSocket
+  useEffect(() => {
+    setTypingUsers(wsTypingUsers);
+  }, [wsTypingUsers]);
+
+  // Handle input change with typing indicator
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setMessageInput(value);
+
+    // Send typing_start if not already typing
+    if (!isTyping && value.length > 0) {
+      setIsTyping(true);
+      sendMessage({ type: 'typing_start', username });
+    }
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set new timeout for typing_stop (1.5 seconds after last keystroke)
+    if (value.length > 0) {
+      typingTimeoutRef.current = setTimeout(() => {
+        setIsTyping(false);
+        sendMessage({ type: 'typing_stop', username });
+      }, 1500);
+    } else {
+      // If input is cleared, stop typing immediately
+      setIsTyping(false);
+      sendMessage({ type: 'typing_stop', username });
+    }
+  };
+
   const handleSendMessage = () => {
     if (messageInput.trim()) {
+      // Clear typing indicator before sending
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      setIsTyping(false);
+      sendMessage({ type: 'typing_stop', username });
+      
+      // Send actual message
       sendMessage(messageInput.trim());
       setMessageInput('');
     }
@@ -128,6 +173,26 @@ export const ChatRoom = ({ roomId, username, onLeave }: ChatRoomProps) => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Typing Indicator */}
+      {typingUsers.length > 0 && (
+        <div className="px-4 py-2 bg-gray-50 border-t border-gray-200">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex gap-1">
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+            </div>
+            <span className="italic">
+              {typingUsers.length === 1
+                ? `${typingUsers[0]} yazıyor...`
+                : typingUsers.length === 2
+                ? `${typingUsers[0]} ve ${typingUsers[1]} yazıyor...`
+                : `${typingUsers.length} kişi yazıyor...`}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="bg-white border-t border-gray-300 p-4">
         <div className="flex items-center gap-2">
@@ -149,7 +214,7 @@ export const ChatRoom = ({ roomId, username, onLeave }: ChatRoomProps) => {
           <input
             type="text"
             value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             placeholder="Mesajınızı yazın..."
             disabled={!isConnected}

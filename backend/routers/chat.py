@@ -124,8 +124,19 @@ async def websocket_endpoint(
                         if not enriched_message.get("timestamp"):
                             enriched_message["timestamp"] = datetime.utcnow().isoformat()
                         
-                        # Mesajı veritabanına kaydet (join/leave hariç)
                         msg_type = enriched_message.get("type", "message")
+                        
+                        # Typing indicators - sadece broadcast et, veritabanına kaydetme
+                        if msg_type == "typing_start":
+                            enriched_message["username"] = username
+                            await manager.broadcast(room_id, enriched_message, sender_username=username, exclude_sender=True)
+                            continue
+                        elif msg_type == "typing_stop":
+                            enriched_message["username"] = username
+                            await manager.broadcast(room_id, enriched_message, sender_username=username, exclude_sender=True)
+                            continue
+                        
+                        # Mesajı veritabanına kaydet (typing hariç)
                         if msg_type == "message" and enriched_message.get("content"):
                             await save_message_to_db(
                                 db=db,

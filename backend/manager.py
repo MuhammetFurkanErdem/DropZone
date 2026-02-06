@@ -82,7 +82,7 @@ class ConnectionManager:
         
         return username
     
-    async def broadcast(self, room_id: str, message: dict, sender_username: str = None):
+    async def broadcast(self, room_id: str, message: dict, sender_username: str = None, exclude_sender: bool = False):
         """
         Odadaki tüm kullanıcılara mesaj gönderir.
         
@@ -90,6 +90,7 @@ class ConnectionManager:
             room_id: Hedef oda
             message: Gönderilecek mesaj (dict -> JSON'a dönüştürülür)
             sender_username: Gönderen kullanıcı adı (opsiyonel, sistem mesajları için None olabilir)
+            exclude_sender: True ise göndericiye mesaj gönderilmez (typing indicator için)
         """
         if room_id not in self.active_connections:
             return
@@ -97,9 +98,13 @@ class ConnectionManager:
         # Mesajı JSON string'e çevir
         message_json = json.dumps(message, ensure_ascii=False)
         
-        # Tüm kullanıcılara gönder
+        # Tüm kullanıcılara gönder (exclude_sender True ise göndericiye hariç)
         disconnected = []
         for connection in self.active_connections[room_id]:
+            # Eğer exclude_sender True ve bu kullanıcı gönderici ise atla
+            if exclude_sender and sender_username and connection["username"] == sender_username:
+                continue
+                
             try:
                 await connection["websocket"].send_text(message_json)
             except Exception as e:
