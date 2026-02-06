@@ -12,16 +12,39 @@ interface ChatRoomProps {
 export const ChatRoom = ({ roomId, username, onLeave }: ChatRoomProps) => {
   const [messageInput, setMessageInput] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { messages, isConnected, error, sendMessage, connect, disconnect } =
+  const { messages, isConnected, error, sendMessage, connect, disconnect, loadHistory } =
     useWebSocket();
 
+  // Load chat history when room is opened
   useEffect(() => {
-    connect(roomId, username);
+    const loadChatHistory = async () => {
+      try {
+        setLoadingHistory(true);
+        const response = await api.getChatHistory(roomId, 50);
+        if (response.messages && response.messages.length > 0) {
+          loadHistory(response.messages);
+        }
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+
+    loadChatHistory();
+  }, [roomId, loadHistory]);
+
+  // Connect to WebSocket after loading history
+  useEffect(() => {
+    if (!loadingHistory) {
+      connect(roomId, username);
+    }
     return () => disconnect();
-  }, [roomId, username, connect, disconnect]);
+  }, [roomId, username, loadingHistory, connect, disconnect]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -50,15 +73,13 @@ export const ChatRoom = ({ roomId, username, onLeave }: ChatRoomProps) => {
       const response = await api.uploadFile(file, roomId, username);
       
       // Send file message via WebSocket
-      sendMessage(
-        JSON.stringify({
-          type: 'file',
-          file_url: response.file_url,
-          file_name: response.file_name,
-          file_size: response.file_size,
-          file_type: response.file_type,
-        })
-      );
+      sendMessage({
+        type: 'file',
+        file_url: response.file_url,
+        file_name: response.file_name,
+        file_size: response.file_size,
+        file_type: response.file_type,
+      });
     } catch (err) {
       alert(`Dosya yükleme hatası: ${err}`);
     } finally {

@@ -34,4 +34,11 @@ export const api = {
     if (!response.ok) throw new Error('Failed to fetch upload info');
     return response.json();
   },
+
+  // Get chat history
+  getChatHistory: async (roomId: string, limit: number = 50) => {
+    const response = await fetch(`${API_URL}/chat/${roomId}/history?limit=${limit}`);
+    if (!response.ok) throw new Error('Failed to fetch chat history');
+    return response.json();
+  },
 };

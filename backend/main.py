@@ -3,16 +3,13 @@ DropZone - Ana Uygulama Giris Noktasi
 FastAPI + WebSocket ile gercek zamanli not paylasim platformu
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from manager import manager
 from config import settings
 from database import init_db, get_db_info
-from schemas import validate_websocket_message
-from routers import upload
-import json
-from datetime import datetime
+from routers import upload, chat
 from pathlib import Path
 
 app = FastAPI(
@@ -37,6 +34,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Router'ları ekle
 app.include_router(upload.router)
+app.include_router(chat.router)  # Chat router (WebSocket + history)
 
 @app.on_event("startup")
 async def startup_event():
@@ -72,82 +70,11 @@ async def root():
         "endpoints": {
             "websocket": "/ws/{room_id}?username={username}",
             "rooms": "/rooms",
+            "chat_history": "/chat/{room_id}/history",
             "upload": "/upload",
             "upload_info": "/upload/info"
         }
     }
-
-@app.get("/rooms")
-async def get_active_rooms():
-    rooms = []
-    for room_id in manager.active_connections.keys():
-        rooms.append({
-            "room_id": room_id,
-            "user_count": manager.get_room_count(room_id),
-            "users": manager.get_room_users(room_id)
-        })
-    return {"total_rooms": len(rooms), "rooms": rooms}
-
-@app.websocket("/ws/{room_id}")
-async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str):
-    await manager.connect(websocket, room_id, username)
-    join_message = {
-        "type": "join",
-        "username": username,
-        "message": f"{username} odaya katildi",
-        "timestamp": datetime.now().isoformat(),
-        "room_users": manager.get_room_users(room_id)
-    }
-    await manager.broadcast(room_id, join_message)
-    
-    try:
-        while True:
-            data = await websocket.receive_text()
-            try:
-                message_data = json.loads(data)
-                if "type" in message_data:
-                    try:
-                        validated_message = validate_websocket_message(message_data)
-                        enriched_message = validated_message.model_dump()
-                        if not enriched_message.get("timestamp"):
-                            enriched_message["timestamp"] = datetime.now().isoformat()
-                    except ValueError as e:
-                        error_message = {
-                            "type": "error",
-                            "error_code": "INVALID_MESSAGE_FORMAT",
-                            "message": str(e),
-                            "timestamp": datetime.now().isoformat()
-                        }
-                        await websocket.send_text(json.dumps(error_message))
-                        continue
-                else:
-                    enriched_message = {
-                        "type": "message",
-                        "username": username,
-                        "content": message_data.get("content", ""),
-                        "timestamp": datetime.now().isoformat()
-                    }
-                
-                # Odadaki herkese broadcast et
-                await manager.broadcast(room_id, enriched_message, sender_username=username)
-            except json.JSONDecodeError:
-                enriched_message = {
-                    "type": "message",
-                    "username": username,
-                    "content": data,
-                    "timestamp": datetime.now().isoformat()
-                }
-                await manager.broadcast(room_id, enriched_message, sender_username=username)
-    except WebSocketDisconnect:
-        disconnected_user = manager.disconnect(websocket, room_id)
-        leave_message = {
-            "type": "leave",
-            "username": disconnected_user or username,
-            "message": f"{disconnected_user or username} odadan ayrildi",
-            "timestamp": datetime.now().isoformat(),
-            "room_users": manager.get_room_users(room_id)
-        }
-        await manager.broadcast(room_id, leave_message)
 
 if __name__ == "__main__":
     import uvicorn

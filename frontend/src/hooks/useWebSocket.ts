@@ -7,9 +7,10 @@ interface UseWebSocketReturn {
   messages: Message[];
   isConnected: boolean;
   error: string | null;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string | object) => void;
   connect: (roomId: string, username: string) => void;
   disconnect: () => void;
+  loadHistory: (history: Message[]) => void;
 }
 
 export const useWebSocket = (): UseWebSocketReturn => {
@@ -68,10 +69,17 @@ export const useWebSocket = (): UseWebSocketReturn => {
     }
   }, []);
 
-  const sendMessage = useCallback((content: string) => {
+  const sendMessage = useCallback((contentOrData: string | object) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ content }));
+      const data = typeof contentOrData === 'string' 
+        ? { content: contentOrData } 
+        : contentOrData;
+      wsRef.current.send(JSON.stringify(data));
     }
+  }, []);
+
+  const loadHistory = useCallback((history: Message[]) => {
+    setMessages(history);
   }, []);
 
   useEffect(() => {
@@ -89,5 +97,6 @@ export const useWebSocket = (): UseWebSocketReturn => {
     sendMessage,
     connect,
     disconnect,
+    loadHistory,
   };
 };
