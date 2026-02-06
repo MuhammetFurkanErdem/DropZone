@@ -120,6 +120,7 @@ export const ChatRoom = ({ roomId, username, onLeave }: ChatRoomProps) => {
       // Send file message via WebSocket
       sendMessage({
         type: 'file',
+        username: username,
         file_url: response.file_url,
         file_name: response.file_name,
         file_size: response.file_size,

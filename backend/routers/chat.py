@@ -154,6 +154,8 @@ async def websocket_endpoint(
                                 message_type='file',
                                 content=file_info
                             )
+                            # File mesajına username ekle
+                            enriched_message["username"] = username
                         
                     except ValueError as e:
                         error_message = {
