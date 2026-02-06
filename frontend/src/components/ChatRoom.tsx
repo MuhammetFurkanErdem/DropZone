@@ -5,11 +5,12 @@ import { Message } from './Message';
 
 interface ChatRoomProps {
   roomId: string;
+  roomName?: string;
   username: string;
   onLeave: () => void;
 }
 
-export const ChatRoom = ({ roomId, username, onLeave }: ChatRoomProps) => {
+export const ChatRoom = ({ roomId, roomName, username, onLeave }: ChatRoomProps) => {
   const [messageInput, setMessageInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -147,7 +148,9 @@ export const ChatRoom = ({ roomId, username, onLeave }: ChatRoomProps) => {
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-4 shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold">{roomId}</h2>
+            <h2 className="text-2xl font-bold">
+              {roomName ? `${roomName} - ${roomId}` : roomId}
+            </h2>
             <p className="text-sm opacity-90">
               {isConnected ? '🟢 Bağlı' : '🔴 Bağlantı kesildi'} • {username}
             </p>

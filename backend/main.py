@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from manager import manager
 from config import settings
 from database import init_db, get_db_info
-from routers import upload, chat
+from routers import upload, chat, rooms
 from pathlib import Path
 
 app = FastAPI(
@@ -35,6 +35,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Router'ları ekle
 app.include_router(upload.router)
 app.include_router(chat.router)  # Chat router (WebSocket + history)
+app.include_router(rooms.router)  # Rooms router (Oda yönetimi)
 
 @app.on_event("startup")
 async def startup_event():

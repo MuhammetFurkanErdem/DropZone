@@ -89,7 +89,18 @@ async def websocket_endpoint(
     username: str,
     db: Session = Depends(get_db)
 ):
-    """WebSocket bağlantısı - mesaj kalıcılığı ile"""
+    """WebSocket bağlantısı - mesaj kalıcılığı ve oda güvenliği ile"""
+    
+    # Oda kodunu büyük harfe çevir
+    room_id = room_id.upper()
+    
+    # Odanın var olup olmadığını kontrol et
+    room = db.query(Room).filter(Room.room_id == room_id, Room.is_active == True).first()
+    if not room:
+        # Oda yoksa bağlantıyı reddet
+        await websocket.close(code=4000, reason=f"Oda bulunamadı: {room_id}")
+        return
+    
     await manager.connect(websocket, room_id, username)
     
     # Join mesajını kaydet ve broadcast et

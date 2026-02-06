@@ -35,5 +35,6 @@ export interface UploadResponse {
 export interface UserState {
   username: string;
   room_id: string;
+  room_name?: string;
   isConnected: boolean;
 }

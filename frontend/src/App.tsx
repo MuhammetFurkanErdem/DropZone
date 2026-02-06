@@ -6,10 +6,11 @@ import type { UserState } from './types/index';
 function App() {
   const [userState, setUserState] = useState<UserState | null>(null);
 
-  const handleLogin = (roomId: string, username: string) => {
+  const handleLogin = (roomId: string, username: string, roomName?: string) => {
     setUserState({
       username,
       room_id: roomId,
+      room_name: roomName,
       isConnected: true,
     });
   };
@@ -25,6 +26,7 @@ function App() {
       ) : (
         <ChatRoom
           roomId={userState.room_id}
+          roomName={userState.room_name}
           username={userState.username}
           onLeave={handleLeave}
         />
