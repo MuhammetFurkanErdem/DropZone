@@ -1,0 +1,21 @@
+# DropZone Backend Dependencies
+# Python 3.10+ gerektirir
+
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# WebSocket Desteği (FastAPI ile yerleşik)
+websockets==12.0
+
+# Veritabanı ORM
+sqlalchemy==2.0.25
+
+# Dosya işlemleri
+python-multipart==0.0.6
+aiofiles==23.2.1
+
+# Güvenlik ve Validation
+pydantic==2.5.3
+pydantic-settings==2.1.0  # Config yönetimi için
+python-dotenv==1.0.0
