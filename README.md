@@ -9,7 +9,12 @@
 - Oda bazlı mesajlaşma
 - Kullanıcı katılma/ayrılma bildirimleri
 
-**⏳ FAZ 2: Dosya Yükleme Servisi (HAZIRLANACAK)**
+**✅ FAZ 2: Dosya Yükleme Servisi (TAMAMLANDI)**
+- `/upload` endpoint'i
+- Dosya validasyonu (boyut, tip kontrolü)
+- UUID ile güvenli dosya isimlendirme
+- WebSocket entegrasyonu
+
 **⏳ FAZ 3: Frontend Entegrasyonu (HAZIRLANACAK)**
 
 ## 🛠️ Teknoloji Yığını
@@ -75,6 +80,26 @@ ws.send(JSON.stringify({
 3. Connect'e tıkla
 4. Mesaj gönder: `{"content": "Selam!"}`
 
+### Dosya Yükleme Test:
+
+**cURL ile:**
+```bash
+curl -X POST "http://localhost:8000/upload" \
+  -F "file=@/path/to/file.pdf" \
+  -F "room_id=Test-Odasi" \
+  -F "username=Ahmet"
+```
+
+**Python ile:**
+```python
+import requests
+
+files = {'file': open('ders-notu.pdf', 'rb')}
+data = {'room_id': 'Test-Odasi', 'username': 'Ahmet'}
+response = requests.post('http://localhost:8000/upload', files=files, data=data)
+print(response.json())
+```
+
 ## 📁 Proje Yapısı
 
 ```
@@ -92,14 +117,16 @@ DropZone/
 
 ## 🎯 Özellikler
 
-### Şu Anki Özellikler (FAZ 1):
+### Şu Anki Özellikler (FAZ 1 + FAZ 2):
 - ✅ Oda bazlı mesajlaşma
 - ✅ Gerçek zamanlı mesaj broadcast'i
 - ✅ Kullanıcı katılma/ayrılma bildirimleri
 - ✅ Aktif oda listesi API'si
+- ✅ Dosya yükleme (PDF, JPG, PNG, GIF, DOC, DOCX)
+- ✅ Dosya boyut ve tip validasyonu
+- ✅ Güvenli dosya isimlendirme (UUID)
 
 ### Gelecek Özellikler:
-- ⏳ PDF/Resim yükleme (FAZ 2)
 - ⏳ React + TypeScript frontend (FAZ 3)
 - ⏳ Dosya önizleme
 - ⏳ Kullanıcı authentication
@@ -110,6 +137,8 @@ DropZone/
 |--------|----------|----------|
 | GET | `/` | Health check |
 | GET | `/rooms` | Aktif odalar listesi |
+| POST | `/upload` | Dosya yükleme |
+| GET | `/upload/info` | Yükleme limitleri bilgisi |
 | WebSocket | `/ws/{room_id}` | Chat bağlantısı |
 
 ## 🧑‍💻 Geliştirici
@@ -117,4 +146,4 @@ DropZone/
 Bu proje, Kampüs SuperApp'inin MVP prototipidir.
 
 ---
-**Son Güncelleme:** FAZ 1 Tamamlandı - WebSocket Core
+**Son Güncelleme:** FAZ 2 Tamamlandı - Dosya Yükleme Servisi Eklendi

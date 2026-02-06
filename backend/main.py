@@ -10,6 +10,7 @@ from manager import manager
 from config import settings
 from database import init_db, get_db_info
 from schemas import validate_websocket_message
+from routers import upload
 import json
 from datetime import datetime
 from pathlib import Path
@@ -33,6 +34,9 @@ UPLOAD_DIR = Path(settings.UPLOAD_DIR)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 Path("logs").mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Router'ları ekle
+app.include_router(upload.router)
 
 @app.on_event("startup")
 async def startup_event():
@@ -67,7 +71,9 @@ async def root():
         },
         "endpoints": {
             "websocket": "/ws/{room_id}?username={username}",
-            "rooms": "/rooms"
+            "rooms": "/rooms",
+            "upload": "/upload",
+            "upload_info": "/upload/info"
         }
     }
 
@@ -121,6 +127,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str):
                         "content": message_data.get("content", ""),
                         "timestamp": datetime.now().isoformat()
                     }
+                
+                # Odadaki herkese broadcast et
                 await manager.broadcast(room_id, enriched_message, sender_username=username)
             except json.JSONDecodeError:
                 enriched_message = {
