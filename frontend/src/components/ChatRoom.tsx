@@ -1,0 +1,148 @@
+import { useState, useRef, useEffect, ChangeEvent } from 'react';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { api } from '../services/api';
+import { Message } from './Message';
+
+interface ChatRoomProps {
+  roomId: string;
+  username: string;
+  onLeave: () => void;
+}
+
+export const ChatRoom = ({ roomId, username, onLeave }: ChatRoomProps) => {
+  const [messageInput, setMessageInput] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { messages, isConnected, error, sendMessage, connect, disconnect } =
+    useWebSocket();
+
+  useEffect(() => {
+    connect(roomId, username);
+    return () => disconnect();
+  }, [roomId, username, connect, disconnect]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = () => {
+    if (messageInput.trim()) {
+      sendMessage(messageInput.trim());
+      setMessageInput('');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const response = await api.uploadFile(file, roomId, username);
+      
+      // Send file message via WebSocket
+      sendMessage(
+        JSON.stringify({
+          type: 'file',
+          file_url: response.file_url,
+          file_name: response.file_name,
+          file_size: response.file_size,
+          file_type: response.file_type,
+        })
+      );
+    } catch (err) {
+      alert(`Dosya yükleme hatası: ${err}`);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleLeave = () => {
+    disconnect();
+    onLeave();
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-4 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">{roomId}</h2>
+            <p className="text-sm opacity-90">
+              {isConnected ? '🟢 Bağlı' : '🔴 Bağlantı kesildi'} • {username}
+            </p>
+          </div>
+          <button
+            onClick={handleLeave}
+            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition"
+          >
+            Çıkış 👋
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        {error && (
+          <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
+            ⚠️ {error}
+          </div>
+        )}
+        {messages.map((msg, idx) => (
+          <Message key={idx} message={msg} currentUsername={username} />
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="bg-white border-t border-gray-300 p-4">
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+            accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || !isConnected}
+            className="bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed p-3 rounded-lg transition"
+            title="Dosya yükle"
+          >
+            {uploading ? '⏳' : '📎'}
+          </button>
+          <input
+            type="text"
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Mesajınızı yazın..."
+            disabled={!isConnected}
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:opacity-50"
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={!isConnected || !messageInput.trim()}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-semibold"
+          >
+            Gönder 🚀
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
